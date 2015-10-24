@@ -15,6 +15,6 @@ var config = require('webgme/config/config.default'),
 // Add requirejs paths
 
 
-config.mongo.uri = 'mongodb://127.0.0.1:27017/drug.delivery'
+config.mongo.uri = 'mongodb://127.0.0.1:27017/drug_delivery'
 validateConfig(config);
 module.exports = config;
