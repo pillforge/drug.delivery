@@ -1,4 +1,12 @@
 {
-  "components": {},
-  "dependencies": {}
+  "components": {
+    "seeds": {
+      "DrugDelivery": {
+        "src": "src/seeds/DrugDelivery"
+      }
+    }
+  },
+  "dependencies": {
+    "seeds": {}
+  }
 }
