@@ -57,37 +57,101 @@ define([
    * @param {function(string, plugin.PluginResult)} callback - the result callback
    */
   DrugDelivery.prototype.main = function (callback) {
-    // Use self to access core, project, result, logger etc from PluginBase.
-    // These are all instantiated at this point.
-    var self = this,
-      nodeObject;
+    var self = this;
+    var nodeObject = self.activeNode;
 
+    debugger;
+    if (!self.core.isTypeOf(nodeObject, self.META.app) ) {
+      return callback('Object is not an *app*', self.result);
+    }
 
-    // Using the logger.
-    self.logger.debug('This is a debug message.');
-    self.logger.info('This is an info message.');
-    self.logger.warn('This is a warning message.');
-    self.logger.error('This is an error message.');
-
-    // Using the coreAPI to make changes.
-
-    nodeObject = self.activeNode;
-
-    self.core.setAttribute(nodeObject, 'name', 'My new obj');
-    self.core.setRegistry(nodeObject, 'position', {x: 70, y: 70});
-
-
-    // This will save the changes. If you don't want to save;
-    // exclude self.save and call callback directly from this scope.
-    self.save('DrugDelivery updated model.', function (err) {
-      if (err) {
-        callback(err, self.result);
-        return;
+    self.core.loadChildren(nodeObject, function (err, children) {
+      for (var i = children.length - 1; i >= 0; i--) {
+        if (self.core.isTypeOf(children[i], self.META.uses)) {
+          self.compileApp(children[i], function (err) {
+            if (err) {
+              return callback(err, self.result);
+            }
+            self.result.setSuccess(true);
+            callback(null, self.result);
+          });
+        }
       }
-      self.result.setSuccess(true);
-      callback(null, self.result);
     });
 
+  };
+
+  DrugDelivery.prototype.compileApp = function (uses_obj, callback) {
+    var self = this;
+    var async = require('async');
+
+    async.series([
+      function (callback) {
+        self.core.loadPointer(uses_obj, 'src', callback);
+      },
+      function (callback) {
+        self.core.loadPointer(uses_obj, 'dst', callback);
+      }
+    ],
+    function (err, results) {
+      if (err) {
+        return callback(err);
+      }
+      var src_obj = results[0];
+      var dst_obj = results[1];
+      if (!self.core.isTypeOf(src_obj, self.META.schedule)) {
+        return callback('Src is not a *schedule* type');
+      }
+      if (!self.core.isTypeOf(dst_obj, self.META.input)) {
+        return callback('Dst is not an *input* type');
+      }
+      self.getSchedule(src_obj, function (err, schedule) {
+        if (err) {
+          return callback(err);
+        }
+        self.logger.info(schedule);
+        // Save schedule and compile
+        callback();
+      });
+    });
+  };
+
+  DrugDelivery.prototype.getSchedule = function (schedule_obj, callback) {
+    var self = this;
+    var cache = {};
+    var order = {};
+    var schedule = [];
+    var initial;
+    self.core.loadChildren(schedule_obj, function (err, children) {
+      for (var i = children.length - 1; i >= 0; i--) {
+        var path = self.core.getPath(children[i]);
+        cache[path] = children[i];
+      }
+      for (var i = children.length - 1; i >= 0; i--) {
+        if (self.core.isTypeOf(children[i], self.META.time)) {
+          var src = self.core.getPointerPath(children[i], 'src');
+          var dst = self.core.getPointerPath(children[i], 'dst');
+          var duration = self.core.getAttribute(children[i], 'duration');
+          var amount = self.core.getAttribute(cache[dst], 'amount');
+          order[src] = [dst, duration, amount];
+        } else if (self.core.isTypeOf(children[i], self.META.start)) {
+          initial = self.core.getPath(children[i]);
+        } else if (self.core.isTypeOf(children[i], self.META.release)) {
+        } else if (self.core.isTypeOf(children[i], self.META.end)) {
+        }
+      }
+
+      var curr = initial;
+      while (order.hasOwnProperty(curr)) {
+        duration = order[curr][1];
+        amount = order[curr][2];
+        curr = order[curr][0];
+        if (amount) {
+          schedule.push([duration, amount]);
+        }
+      }
+      callback(null, schedule);
+    });
   };
 
   return DrugDelivery;
