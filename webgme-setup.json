@@ -4,9 +4,16 @@
       "DrugDelivery": {
         "src": "src/seeds/DrugDelivery"
       }
+    },
+    "plugins": {
+      "DrugDelivery": {
+        "src": "src/plugins/DrugDelivery",
+        "test": "test/plugins/DrugDelivery"
+      }
     }
   },
   "dependencies": {
-    "seeds": {}
+    "seeds": {},
+    "plugins": {}
   }
 }
