@@ -7,10 +7,12 @@
 
 define([
   'plugin/PluginConfig',
-  'plugin/PluginBase'
+  'plugin/PluginBase',
+  'module'
 ], function (
   PluginConfig,
-  PluginBase) {
+  PluginBase,
+  module) {
   'use strict';
 
   /**
@@ -60,7 +62,6 @@ define([
     var self = this;
     var nodeObject = self.activeNode;
 
-    debugger;
     if (!self.core.isTypeOf(nodeObject, self.META.app) ) {
       return callback('Object is not an *app*', self.result);
     }
@@ -84,6 +85,8 @@ define([
   DrugDelivery.prototype.compileApp = function (uses_obj, callback) {
     var self = this;
     var async = require('async');
+    var fs = require('fs');
+    var path = require('path');
 
     async.series([
       function (callback) {
@@ -105,15 +108,34 @@ define([
       if (!self.core.isTypeOf(dst_obj, self.META.input)) {
         return callback('Dst is not an *input* type');
       }
+      var parent_node = self.core.getParent(dst_obj);
+      var parent_name = self.core.getAttribute(parent_node, 'name');
+
+      var dirname = module.uri;
+      var path_to_template = path.join(path.resolve(dirname), '../../../templates', parent_name);
+      if (!fs.existsSync(path_to_template)) {
+        return callback('no template for ' + parent_name);
+      }
       self.getSchedule(src_obj, function (err, schedule) {
         if (err) {
           return callback(err);
         }
-        self.logger.info(schedule);
         // Save schedule and compile
+        var header = self.saveHeader(schedule, path_to_template);
         callback();
       });
     });
+  };
+
+  DrugDelivery.prototype.saveHeader = function(schedule, file_path) {
+    var fs = require('fs');
+    var path = require('path');
+    file_path = path.join(file_path, 'schedule_data.h');
+    var s = '#define schedule_data_macro ';
+    s += '{' + schedule.map(function (sch) {
+      return '{' + sch[0] + ', ' + sch[1] + '}';
+    }).join(', ') + '}';
+    fs.writeFileSync(file_path, s);
   };
 
   DrugDelivery.prototype.getSchedule = function (schedule_obj, callback) {
@@ -136,9 +158,10 @@ define([
           order[src] = [dst, duration, amount];
         } else if (self.core.isTypeOf(children[i], self.META.start)) {
           initial = self.core.getPath(children[i]);
-        } else if (self.core.isTypeOf(children[i], self.META.release)) {
-        } else if (self.core.isTypeOf(children[i], self.META.end)) {
         }
+        // else if (self.core.isTypeOf(children[i], self.META.release)) {
+        // } else if (self.core.isTypeOf(children[i], self.META.end)) {
+        // }
       }
 
       var curr = initial;
