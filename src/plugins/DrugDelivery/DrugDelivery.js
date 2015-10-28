@@ -87,6 +87,7 @@ define([
     var async = require('async');
     var fs = require('fs');
     var path = require('path');
+    var execSync = require('child_process').execSync;
 
     async.series([
       function (callback) {
@@ -122,6 +123,15 @@ define([
         }
         // Save schedule and compile
         var header = self.saveHeader(schedule, path_to_template);
+        var cmd = 'make exp430';
+        try {
+          execSync(cmd, {
+            cwd: path_to_template,
+            stdio: 'inherit'
+          });
+        } catch (err) {
+          return callback(err);
+        }
         callback();
       });
     });
