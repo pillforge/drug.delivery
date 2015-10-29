@@ -132,7 +132,19 @@ define([
         } catch (err) {
           return callback(err);
         }
-        callback();
+        var artifact = self.blobClient.createArtifact('generatedfiles');
+        var path_to_build = path.join(path_to_template, 'build', 'exp430');
+        var files = fs.readdirSync(path_to_build);
+        var filesToAdd = {};
+        files.forEach(function(file) {
+          filesToAdd[file] = fs.readFileSync(path.join(path_to_build, file));
+        });
+        artifact.addFiles(filesToAdd, function (err, hashes) {
+          artifact.save(function (err, hash) {
+            self.result.addArtifact(hash);
+            callback();
+          });
+        });
       });
     });
   };
