@@ -62,6 +62,14 @@ define([
     var self = this;
     var nodeObject = self.activeNode;
 
+    var meta_types = ['app', 'uses', 'schedule', 'input', 'time', 'start'];
+    var meta_complete = meta_types.every(function(e) {
+      return self.META[e];
+    });
+    if (!meta_complete) {
+      return callback('META definition is not complete', self.result);
+    }
+
     if (!self.core.isTypeOf(nodeObject, self.META.app) ) {
       return callback('Object is not an *app*', self.result);
     }
