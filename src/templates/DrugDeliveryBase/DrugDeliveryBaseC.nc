@@ -1,7 +1,6 @@
-/*#define CC1101_PA CC1101_PA_PLUS_0*/
-#include "DrugDelivery.h"
 #define NEW_PRINTF_SEMANTICS
 #include "printf.h"
+#include "DrugDelivery.h"
 #include "schedule_data.h"
 
 module DrugDeliveryBaseC {
@@ -15,12 +14,6 @@ module DrugDeliveryBaseC {
     interface Packet;
     interface AMSend;
     interface Receive;
-
-
-    interface SplitControl as SAMControl;
-    interface Receive as SAMReceive;
-    interface AMSend as SAMSend;
-    interface Packet as SAMPacket;
 
   }
 }
@@ -122,74 +115,6 @@ implementation {
     rsm->data3 = data3;
     call AMSend.send(to_send_addr, &packet, sizeof(RadioStatusMsg));
   }
-
-  
-  message_t s_packet;
-  
-
-  uint8_t remaining_drug = 100;
-  uint32_t time_interval; // in seconds
-  uint8_t amount; // in percentage
-
-
-  uint8_t schedule_index = 0;
-  uint8_t is_schedule_sent = 0;
-
-  task void sendSchedule2();
-  task void sendRemainingValue();
-  void sendAllSchedule();
-
-
-  event void SAMControl.startDone(error_t err) {
-    if (err == SUCCESS) {
-      printf("SerialActiveMessage started.\n");
-      sendAllSchedule();
-    } else {
-      call SAMControl.start();
-    }
-  }
-
-
-  void sendAllSchedule() {
-    
-    printf("Start sending the schedule: %d\n", size_schedule_data);
-    post sendSchedule2();
-  }
-
-  task void sendSchedule2() {
-    DrugSchedulerData *dsd = (DrugSchedulerData *)
-      call Packet.getPayload(&packet, sizeof(DrugSchedulerData));
-    printf("Sending %d/%d of schedule data.\n", schedule_index, size_schedule_data);
-    dsd->time_interval = schedule_data[schedule_index][0];
-    dsd->amount = schedule_data[schedule_index][1];
-    schedule_index++;
-    if (schedule_index == size_schedule_data) {
-      is_schedule_sent = 1;
-    }
-    call AMSend.send(to_send_addr, &packet, sizeof(DrugSchedulerData));
-  }
-
-
-
-  task void sendRemainingValue() {
-    DrugSchedulerData *dd = (DrugSchedulerData *)
-      call SAMPacket.getPayload(&s_packet, sizeof(DrugSchedulerData));
-    dd->amount = remaining_drug;
-    call SAMSend.send(AM_BROADCAST_ADDR, &s_packet, sizeof(DrugSchedulerData));
-  }
-
-  event message_t* SAMReceive.receive(message_t* bufPtr, void* payload, uint8_t len) {
-    DrugSchedulerData *dd = (DrugSchedulerData *) payload;
-    call Leds.led0Toggle();
-    time_interval = dd->time_interval; // in seconds
-    amount = dd->amount; // in percentage
-    // post sendSchedule2();
-    return bufPtr;
-  }
-
-  event void SAMSend.sendDone(message_t* bufPtr, error_t error) {}
-
-  event void SAMControl.stopDone(error_t err) {}
 
   event void AMSend.sendDone(message_t* bufPtr, error_t error) {}
 

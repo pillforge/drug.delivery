@@ -6,7 +6,6 @@
  */
 
 #include "DrugDelivery.h"
-#include "DrugScheduler.h"
 
 configuration DrugDeliveryBaseAppC {
 }
@@ -29,17 +28,5 @@ implementation {
   App.AMSend -> AMSenderC;
   components new AMReceiverC(AM_RADIOSTATUSMSG);
   App.Receive -> AMReceiverC;
-
-
-  
-
-  
-
-  components SerialActiveMessageC as SAM;
-  App.SAMControl -> SAM;
-  App.SAMReceive -> SAM.Receive[AM_DRUGSCHEDULERDATA];
-  App.SAMSend -> SAM.AMSend[AM_DRUGSCHEDULERDATA];
-  App.SAMPacket -> SAM;
-
 
 }

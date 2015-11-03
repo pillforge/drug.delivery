@@ -29,20 +29,7 @@ implementation {
   components new AMReceiverC(AM_RADIOSTATUSMSG);
   App.Receive -> AMReceiverC;
 
-
-  components new TimerMilliC() as Timer1;
-  components new TimerMilliC() as Timer2;
-
-
-  App.Timer -> Timer1;
-  App.MotorTimer -> Timer2;
-
   components new MotorDriverGenericC(0) as M0;
   App.M0 -> M0;
-
-  components DrugSchedulerC;
-  App.DrugSchedulerI -> DrugSchedulerC;
-
-
 
 }

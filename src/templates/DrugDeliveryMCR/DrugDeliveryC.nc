@@ -1,7 +1,6 @@
-/*#define CC1101_PA CC1101_PA_PLUS_10*/
-#include "DrugDelivery.h"
 #define NEW_PRINTF_SEMANTICS
 #include "printf.h"
+#include "DrugDelivery.h"
 
 module DrugDeliveryC {
   uses {
@@ -15,10 +14,7 @@ module DrugDeliveryC {
     interface AMSend;
     interface Receive;
 
-    interface Timer<TMilli>;
-    interface Timer<TMilli> as MotorTimer;
     interface Actuate<uint8_t> as M0;
-    interface DrugSchedulerI;
   }
 }
 
@@ -87,8 +83,8 @@ implementation {
         post sendStatus();
         break;
       case 123:
-        printf("Received a schedule: #%d %d mins %s %d%\n", data1, data2, data3);
-        printf("only data 3 %d\n", data3);
+        printf("Received a schedule: #%u %u mins %u%\n", data1, data2, data3);
+        printf("only data 3 %u\n", data3);
         post sendStatus();
         break;
       case 124:
@@ -102,45 +98,7 @@ implementation {
     }
   }
 
-  
-
-  task void sendTask();
-
-
-  event void DrugSchedulerI.scheduleReceived() {
-    printf("DrugDeliveryC.DrugSchedulerI.scheduleReceived\n");
-    call Leds.led1Toggle();
-    call Timer.stop();
-    call Timer.startPeriodic(1000);
-  }
-
-  event void Timer.fired() {
-    printf("Remaining drug: %d%\n", status);
-    if (status <= 0) {
-      call Timer.stop();
-    }
-    post sendTask();
-  }
-
-  task void sendTask() {
-    RadioDataMsg *rdm = (RadioDataMsg *) call Packet.getPayload(&packet, sizeof(RadioDataMsg));
-    rdm->status = status;
-    call AMSend.send(to_send_addr, &packet, sizeof(RadioDataMsg));
-  }
-
   event void AMSend.sendDone(message_t* bufPtr, error_t error) {}
-
-  event void DrugSchedulerI.release (uint8_t amount) {
-    uint8_t c_amount = amount > status ? status : amount;
-    printf("DrugDeliveryC.DrugSchedulerI.release %d percent\n", amount);
-    status -= c_amount;
-    call M0.write(255); // value to be determined
-    call MotorTimer.startOneShot(c_amount); // value to be determined
-  }
-
-  event void MotorTimer.fired() {
-    call M0.write(0);
-  }
 
   event void RadioControl.stopDone(error_t err) {}
 
