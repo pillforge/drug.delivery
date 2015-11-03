@@ -62,7 +62,7 @@ define([
     var self = this;
     var nodeObject = self.activeNode;
 
-    var meta_types = ['app', 'uses', 'schedule', 'input', 'time', 'start'];
+    var meta_types = ['app', 'uses', 'schedule', 'input', 'time', 'start', 'template_app'];
     var meta_complete = meta_types.every(function(e) {
       return self.META[e];
     });
@@ -74,20 +74,62 @@ define([
       return callback('Object is not an *app*', self.result);
     }
 
+    var template_app = '';
     self.core.loadChildren(nodeObject, function (err, children) {
       for (var i = children.length - 1; i >= 0; i--) {
-        if (self.core.isTypeOf(children[i], self.META.uses)) {
-          self.compileApp(children[i], function (err) {
-            if (err) {
-              return callback(err, self.result);
-            }
-            self.result.setSuccess(true);
-            callback(null, self.result);
-          });
+        if (self.core.isTypeOf(children[i], self.META.template_app)) {
+          var p_node = self.core.getBase(children[i]);
+          template_app = self.core.getAttribute(p_node, 'name');
+          break;
         }
+      }
+      switch(template_app) {
+        case '':
+          return callback('There\'s no template_app object in the sheet', self.result);
+          break;
+        case 'DrugDeliveryBase':
+          self.core.loadChildren(nodeObject, function (err, children) {
+            for (var i = children.length - 1; i >= 0; i--) {
+              if (self.core.isTypeOf(children[i], self.META.uses)) {
+                self.compileApp(children[i], function (err) {
+                  if (err) {
+                    return callback(err, self.result);
+                  }
+                  self.result.setSuccess(true);
+                  callback(null, self.result);
+                });
+              }
+            }
+          });
+          break;
+        case 'DrugDeliveryMCR':
+          self.compileMCR(callback);
+          break;
+        default:
+          return callback('unknown issue: ' + template_app, self.result);
       }
     });
 
+
+
+  };
+
+  DrugDelivery.prototype.compileMCR = function (callback) {
+    var self = this;
+    var path = require('path');
+    var fs = require('fs');
+    var dirname = module.uri;
+    var path_to_template = path.join(path.resolve(dirname), '../../../templates/DrugDeliveryMCR');
+    if (!fs.existsSync(path_to_template)) {
+      return callback('no template for ' + parent_name);
+    }
+    self.compileAddArtifacts(path_to_template, function (err) {
+      if (err) {
+        return callback(err, self.result);
+      }
+      self.result.setSuccess(true);
+      callback(null, self.result);
+    });
   };
 
   DrugDelivery.prototype.compileApp = function (uses_obj, callback) {
@@ -95,7 +137,6 @@ define([
     var async = require('async');
     var fs = require('fs');
     var path = require('path');
-    var execSync = require('child_process').execSync;
 
     async.series([
       function (callback) {
@@ -131,28 +172,36 @@ define([
         }
         // Save schedule and compile
         var header = self.saveHeader(schedule, path_to_template);
-        var cmd = 'make exp430';
-        try {
-          execSync(cmd, {
-            cwd: path_to_template,
-            stdio: 'inherit'
-          });
-        } catch (err) {
-          return callback(err);
-        }
-        var artifact = self.blobClient.createArtifact('generatedfiles');
-        var path_to_build = path.join(path_to_template, 'build', 'exp430');
-        var files = fs.readdirSync(path_to_build);
-        var filesToAdd = {};
-        files.forEach(function(file) {
-          filesToAdd[file] = fs.readFileSync(path.join(path_to_build, file));
-        });
-        artifact.addFiles(filesToAdd, function (err, hashes) {
-          artifact.save(function (err, hash) {
-            self.result.addArtifact(hash);
-            callback();
-          });
-        });
+        self.compileAddArtifacts(path_to_template, callback);
+      });
+    });
+  };
+
+  DrugDelivery.prototype.compileAddArtifacts = function(path_to_template, callback) {
+    var self = this;
+    var path = require('path');
+    var fs = require('fs');
+    var execSync = require('child_process').execSync;
+    var cmd = 'make exp430';
+    try {
+      execSync(cmd, {
+        cwd: path_to_template,
+        stdio: 'inherit'
+      });
+    } catch (err) {
+      return callback(err);
+    }
+    var artifact = self.blobClient.createArtifact(path.basename(path_to_template));
+    var path_to_build = path.join(path_to_template, 'build', 'exp430');
+    var files = fs.readdirSync(path_to_build);
+    var filesToAdd = {};
+    files.forEach(function(file) {
+      filesToAdd[file] = fs.readFileSync(path.join(path_to_build, file));
+    });
+    artifact.addFiles(filesToAdd, function (err, hashes) {
+      artifact.save(function (err, hash) {
+        self.result.addArtifact(hash);
+        callback();
       });
     });
   };
