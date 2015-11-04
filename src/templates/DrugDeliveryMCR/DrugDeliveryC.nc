@@ -92,7 +92,7 @@ implementation {
         printf("Schedule wholly received\n");
         status = 100;
         call BeatTimer.stop();
-        call BeatTimer.startPeriodic(heartbeat_time);
+        call BeatTimer.startPeriodic(heartbeat);
         post sendStatus();
         break;
       default:

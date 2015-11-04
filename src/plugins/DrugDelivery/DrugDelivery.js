@@ -103,33 +103,97 @@ define([
           });
           break;
         case 'DrugDeliveryMCR':
-          self.compileMCR(callback);
+          self.compileMCR(nodeObject, callback);
           break;
         default:
           return callback('unknown issue: ' + template_app, self.result);
       }
     });
 
-
-
   };
 
-  DrugDelivery.prototype.compileMCR = function (callback) {
+  DrugDelivery.prototype.getChildrenObj = function(nodeObject, callback) {
+    var self = this;
+    var result = {
+      'template_app': [],
+      'uses': []
+    };
+    self.core.loadChildren(nodeObject, function (err, children) {
+      if (err) {
+        return callback(err);
+      }
+      for (var i = children.length - 1; i >= 0; i--) {
+        if (self.core.isTypeOf(children[i], self.META.template_app)) {
+          result['template_app'].push(children[i]);
+        } else if (self.core.isTypeOf(children[i], self.META.uses)) {
+          result['uses'].push(children[i]);
+        }
+      }
+      return callback(null, result);
+    });
+  };
+
+  DrugDelivery.prototype.compileMCR = function (nodeObject, callback) {
     var self = this;
     var path = require('path');
+    var async = require('async');
     var fs = require('fs');
     var dirname = module.uri;
+
     var path_to_template = path.join(path.resolve(dirname), '../../../templates/DrugDeliveryMCR');
     if (!fs.existsSync(path_to_template)) {
       return callback('no template for ' + parent_name);
     }
-    self.compileAddArtifacts(path_to_template, function (err) {
+
+    async.waterfall([
+      function (callback) {
+        self.getChildrenObj(nodeObject, callback);
+      },
+      function (app_children, callback) {
+        if (app_children['template_app'].length != 1) {
+          callback('There should be only 1 template_app in the sheet');
+        }
+
+        var macro_obj = {};
+        async.each(app_children['uses'], function (uses, callback) {
+          async.parallel([
+            function (callback) {
+              self.core.loadPointer(uses, 'src', callback);
+            },
+            function (callback) {
+              self.core.loadPointer(uses, 'dst', callback);
+            }
+          ], function (err, results) {
+            var src_obj = results[0];
+            var dst_obj = results[1];
+            var dst_name = self.core.getAttribute(dst_obj, 'name');
+            if (dst_name != 'heartbeat') {
+              return callback('Unknown input type');
+            }
+            var src_value = self.core.getAttribute(src_obj, 'value');
+            macro_obj[dst_name] = src_value;
+            callback();
+          });
+        }, function (err) {
+          if (err) {
+            return callback(err);
+          }
+          callback(null, macro_obj);
+        });
+      },
+      function (macro_obj, callback) {
+        self.saveHeaderMCR(macro_obj, path_to_template);
+        self.compileAddArtifacts(path_to_template, callback);
+      }
+    ],
+    function (err, result) {
       if (err) {
         return callback(err, self.result);
       }
       self.result.setSuccess(true);
-      callback(null, self.result);
+      return callback(null, self.result);
     });
+
   };
 
   DrugDelivery.prototype.compileApp = function (uses_obj, callback) {
@@ -204,6 +268,17 @@ define([
         callback();
       });
     });
+  };
+
+  DrugDelivery.prototype.saveHeaderMCR = function(macro_obj, file_path) {
+    var path = require('path');
+    var fs = require('fs');
+    file_path = path.join(file_path, 'drug_delivery_mcr.h');
+    var s = '';
+    for (var mac in macro_obj) {
+      s += '#define ' + mac + ' ' + macro_obj[mac] + '\n';
+    }
+    fs.writeFileSync(file_path, s);
   };
 
   DrugDelivery.prototype.saveHeader = function(schedule, file_path) {

@@ -1,1 +1,1 @@
-#define heartbeat_time 3000
+#define heartbeat 7654
