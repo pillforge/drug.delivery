@@ -1,6 +1,7 @@
 #define NEW_PRINTF_SEMANTICS
 #include "printf.h"
 #include "DrugDelivery.h"
+#include "drug_delivery_mcr.h"
 
 module DrugDeliveryC {
   uses {
@@ -83,13 +84,15 @@ implementation {
         post sendStatus();
         break;
       case 123:
-        printf("Received a schedule: #%u %u mins %u%\n", data1, data2, data3);
-        printf("only data 3 %u\n", data3);
+        printf("Received a schedule: #%u %u mins %u %d%\n", data1, data2, data3);
+        printf("only data3: %u\n", data3);
         post sendStatus();
         break;
       case 124:
         printf("Schedule wholly received\n");
         status = 100;
+        call BeatTimer.stop();
+        call BeatTimer.startPeriodic(heartbeat_time);
         post sendStatus();
         break;
       default:
