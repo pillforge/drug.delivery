@@ -28,7 +28,7 @@ describe('DrugDelivery', function () {
       })
       .then(function () {
         var importParam = {
-          projectSeed: testFixture.path.join(testFixture.SEED_DIR, 'EmptyProject.json'),
+          projectSeed: testFixture.path.join(testFixture.SEED_DIR, 'DrugDelivery/DrugDelivery.json'),
           projectName: projectName,
           branchName: 'master',
           logger: logger,
@@ -53,7 +53,7 @@ describe('DrugDelivery', function () {
       .nodeify(done);
   });
 
-  it('should run plugin and update the branch', function (done) {
+  it('should run plugin and return *object is not an app* error', function (done) {
     var manager = new PluginCliManager(null, logger, gmeConfig),
       pluginConfig = {
       },
@@ -61,19 +61,16 @@ describe('DrugDelivery', function () {
         project: project,
         commitHash: commitHash,
         branchName: 'test',
-        activeNode: '/960660211',
+        activeNode: '/1',
       };
 
-    manager.executePlugin(pluginName, pluginConfig, context, function (err, pluginResult) {
-      expect(err).to.equal(null);
-      expect(typeof pluginResult).to.equal('object');
-      expect(pluginResult.success).to.equal(true);
+      manager.executePlugin(pluginName, pluginConfig, context, function (err, pluginResult) {
+        expect(err).to.not.equal(null);
+        expect(typeof pluginResult).to.equal('object');
+        expect(pluginResult.success).to.equal(false);
 
-      project.getBranchHash('test')
-        .then(function (branchHash) {
-          expect(branchHash).to.not.equal(commitHash);
-        })
-        .nodeify(done);
-    });
+        done();
+      });
   });
+
 });

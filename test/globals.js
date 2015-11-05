@@ -7,6 +7,7 @@
 
 'use strict';
 
+var path = require('path');
 var testFixture = require('webgme/test/_globals'),
     WEBGME_CONFIG_PATH = '../config';
 
@@ -28,5 +29,6 @@ var WebGME = testFixture.WebGME,
 WebGME.addToRequireJsPaths(gmeConfig);
 
 testFixture.getGmeConfig = getGmeConfig;
+testFixture.SEED_DIR = path.join(__dirname, '../src/seeds');
 
 module.exports = testFixture;
