@@ -16,7 +16,11 @@ implementation {
   App.Boot -> MainC.Boot;
 
   components new TimerMilliC() as Timer0;
+  components new TimerMilliC() as Timer1;
+  components new TimerMilliC() as Timer2;
   App.BeatTimer -> Timer0;
+  App.ScheduleTimer -> Timer1;
+  App.MotorTimer -> Timer2;
   components LedsC;
   App.Leds -> LedsC;
 
