@@ -2,5 +2,4 @@ node_modules
 *.log
 build
 *.pyc
-schedule_data.h
 blob-local-storage/

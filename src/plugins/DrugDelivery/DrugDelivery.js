@@ -76,11 +76,22 @@ define([
 
     self.template_apps_data = {
       'DrugDeliveryBase': {
-        schedule: 'schedule',
-        viscosity: 'number'
+        filename: 'schedule_data.h',
+        schedule: {
+          type: 'schedule',
+          name: 'schedule_data_macro'
+        },
+        viscosity: {
+          type: 'number',
+          name: 'viscosity'
+        }
       },
       'DrugDeliveryMCR': {
-        heartbeat: 'number'
+        filename: 'drug_delivery_mcr.h',
+        heartbeat: {
+          type: 'number',
+          name: 'heartbeat'
+        }
       }
     };
 
@@ -91,47 +102,6 @@ define([
       self.result.setSuccess(true);
       return callback(null, self.result);
     });
-
-    // var template_app = '';
-    // self.core.loadChildren(nodeObject, function (err, children) {
-    //   for (var i = children.length - 1; i >= 0; i--) {
-    //     if (self.core.isTypeOf(children[i], self.META.template_app)) {
-    //       var p_node = self.core.getBase(children[i]);
-    //       template_app = self.core.getAttribute(p_node, 'name');
-    //       break;
-    //     }
-    //   }
-    //   if (self.template_apps_data[template_app]) {
-
-    //     switch(template_app) {
-    //       case 'DrugDeliveryBase':
-    //         self.core.loadChildren(nodeObject, function (err, children) {
-    //           for (var i = children.length - 1; i >= 0; i--) {
-    //             if (self.core.isTypeOf(children[i], self.META.uses)) {
-    //               self.compileApp(children[i], function (err) {
-    //                 if (err) {
-    //                   return callback(err, self.result);
-    //                 }
-    //                 self.result.setSuccess(true);
-    //                 callback(null, self.result);
-    //               });
-    //             }
-    //           }
-    //         });
-    //         break;
-    //       case 'DrugDeliveryMCR':
-    //         self.compileMCR(nodeObject, callback);
-    //         break;
-    //       default:
-    //         return callback('unknown issue: ' + template_app, self.result);
-    //     }
-
-    //   } else {
-    //     return callback('There\'s no template_app object in the sheet', self.result);
-    //   }
-
-
-    // });
 
   };
 
@@ -156,12 +126,11 @@ define([
         if (!fs.existsSync(path_to_template)) {
           return callback('no template for ' + parent_name);
         }
-        self.getInputValues(children_obj, callback);
+        self.getInputValues(children_obj, template_app_name, callback);
       },
       function (input_obj, callback) {
-        // save header
-        // compile and add artifacts
-        callback();
+        self.saveHeader(input_obj, path_to_template, template_app_name);
+        self.compileAddArtifacts(path_to_template, callback);
       }
     ],
     function (err, results) {
@@ -193,7 +162,7 @@ define([
     });
   };
 
-  DrugDelivery.prototype.getInputValues = function (children_obj, callback) {
+  DrugDelivery.prototype.getInputValues = function (children_obj, appname, callback) {
     var self = this;
     var async = require('async');
     var macro_obj = {};
@@ -209,10 +178,21 @@ define([
         var src_obj = results[0];
         var dst_obj = results[1];
         var dst_name = self.core.getAttribute(dst_obj, 'name');
-        // TODO
-        var src_value = self.core.getAttribute(src_obj, 'value');
-        macro_obj[dst_name] = src_value;
-        callback();
+
+        if (self.template_apps_data[appname][dst_name].type == 'schedule') {
+          self.getSchedule(src_obj, function (err, schedule) {
+            if (err) {
+              return callback(err);
+            }
+            macro_obj[dst_name] = self.scheduleToString(schedule);
+            callback();
+          });
+        } else {
+          var src_value = self.core.getAttribute(src_obj, 'value');
+          macro_obj[dst_name] = src_value;
+          callback();
+        }
+
       });
     }, function (err) {
       if (err) {
@@ -222,113 +202,10 @@ define([
     });
   };
 
-
-  DrugDelivery.prototype.compileMCR = function (nodeObject, callback) {
-    var self = this;
-    var path = require('path');
-    var async = require('async');
-    var fs = require('fs');
-    var dirname = module.uri;
-
-    var path_to_template = path.join(path.resolve(dirname), '../../../templates/DrugDeliveryMCR');
-    if (!fs.existsSync(path_to_template)) {
-      return callback('no template for ' + parent_name);
-    }
-
-    async.waterfall([
-      function (callback) {
-        self.getChildrenObj(nodeObject, callback);
-      },
-      function (app_children, callback) {
-        if (app_children.template_app.length != 1) {
-          callback('There should be only 1 template_app in the sheet');
-        }
-
-        var macro_obj = {};
-        async.each(app_children.uses, function (uses, callback) {
-          async.parallel([
-            function (callback) {
-              self.core.loadPointer(uses, 'src', callback);
-            },
-            function (callback) {
-              self.core.loadPointer(uses, 'dst', callback);
-            }
-          ], function (err, results) {
-            var src_obj = results[0];
-            var dst_obj = results[1];
-            var dst_name = self.core.getAttribute(dst_obj, 'name');
-            if (dst_name != 'heartbeat') {
-              return callback('Unknown input type');
-            }
-            var src_value = self.core.getAttribute(src_obj, 'value');
-            macro_obj[dst_name] = src_value;
-            callback();
-          });
-        }, function (err) {
-          if (err) {
-            return callback(err);
-          }
-          callback(null, macro_obj);
-        });
-      },
-      function (macro_obj, callback) {
-        self.saveHeaderMCR(macro_obj, path_to_template);
-        self.compileAddArtifacts(path_to_template, callback);
-      }
-    ],
-    function (err, result) {
-      if (err) {
-        return callback(err, self.result);
-      }
-      self.result.setSuccess(true);
-      return callback(null, self.result);
-    });
-
-  };
-
-  DrugDelivery.prototype.compileApp = function (uses_obj, callback) {
-    var self = this;
-    var async = require('async');
-    var fs = require('fs');
-    var path = require('path');
-
-    async.series([
-      function (callback) {
-        self.core.loadPointer(uses_obj, 'src', callback);
-      },
-      function (callback) {
-        self.core.loadPointer(uses_obj, 'dst', callback);
-      }
-    ],
-    function (err, results) {
-      if (err) {
-        return callback(err);
-      }
-      var src_obj = results[0];
-      var dst_obj = results[1];
-      if (!self.core.isTypeOf(src_obj, self.META.schedule)) {
-        return callback('Src is not a *schedule* type');
-      }
-      if (!self.core.isTypeOf(dst_obj, self.META.input)) {
-        return callback('Dst is not an *input* type');
-      }
-      var parent_node = self.core.getParent(dst_obj);
-      var parent_name = self.core.getAttribute(parent_node, 'name');
-
-      var dirname = module.uri;
-      var path_to_template = path.join(path.resolve(dirname), '../../../templates', parent_name);
-      if (!fs.existsSync(path_to_template)) {
-        return callback('no template for ' + parent_name);
-      }
-      self.getSchedule(src_obj, function (err, schedule) {
-        if (err) {
-          return callback(err);
-        }
-        // Save schedule and compile
-        var header = self.saveHeader(schedule, path_to_template);
-        self.compileAddArtifacts(path_to_template, callback);
-      });
-    });
+  DrugDelivery.prototype.scheduleToString = function(schedule_data) {
+    return '{' + schedule_data.map(function (sch) {
+      return '{' + sch[0] + ', ' + sch[1] + '}';
+    }).join(', ') + '}';
   };
 
   DrugDelivery.prototype.compileAddArtifacts = function(path_to_template, callback) {
@@ -360,27 +237,18 @@ define([
     });
   };
 
-  DrugDelivery.prototype.saveHeaderMCR = function(macro_obj, file_path) {
+  DrugDelivery.prototype.saveHeader = function(macro_obj, file_path, appname) {
     var path = require('path');
     var fs = require('fs');
-    file_path = path.join(file_path, 'drug_delivery_mcr.h');
+    var d = this.template_apps_data[appname];
+    file_path = path.join(file_path, d.filename);
     var s = '';
     for (var mac in macro_obj) {
-      s += '#define ' + mac + ' ' + macro_obj[mac] + '\n';
+      s += '#define ' + d[mac].name + ' ' + macro_obj[mac] + '\n';
     }
     fs.writeFileSync(file_path, s);
   };
 
-  DrugDelivery.prototype.saveHeader = function(schedule, file_path) {
-    var fs = require('fs');
-    var path = require('path');
-    file_path = path.join(file_path, 'schedule_data.h');
-    var s = '#define schedule_data_macro ';
-    s += '{' + schedule.map(function (sch) {
-      return '{' + sch[0] + ', ' + sch[1] + '}';
-    }).join(', ') + '}';
-    fs.writeFileSync(file_path, s);
-  };
 
   DrugDelivery.prototype.getSchedule = function (schedule_obj, callback) {
     var self = this;
