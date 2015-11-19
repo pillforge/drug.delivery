@@ -74,42 +74,102 @@ define([
       return callback('Object is not an *app*', self.result);
     }
 
-    var template_app = '';
-    self.core.loadChildren(nodeObject, function (err, children) {
-      for (var i = children.length - 1; i >= 0; i--) {
-        if (self.core.isTypeOf(children[i], self.META.template_app)) {
-          var p_node = self.core.getBase(children[i]);
-          template_app = self.core.getAttribute(p_node, 'name');
-          break;
-        }
+    self.template_apps_data = {
+      'DrugDeliveryBase': {
+        schedule: 'schedule',
+        viscosity: 'number'
+      },
+      'DrugDeliveryMCR': {
+        heartbeat: 'number'
       }
-      switch(template_app) {
-        case '':
-          return callback('There\'s no template_app object in the sheet', self.result);
-          break;
-        case 'DrugDeliveryBase':
-          self.core.loadChildren(nodeObject, function (err, children) {
-            for (var i = children.length - 1; i >= 0; i--) {
-              if (self.core.isTypeOf(children[i], self.META.uses)) {
-                self.compileApp(children[i], function (err) {
-                  if (err) {
-                    return callback(err, self.result);
-                  }
-                  self.result.setSuccess(true);
-                  callback(null, self.result);
-                });
-              }
-            }
-          });
-          break;
-        case 'DrugDeliveryMCR':
-          self.compileMCR(nodeObject, callback);
-          break;
-        default:
-          return callback('unknown issue: ' + template_app, self.result);
+    };
+
+    self.compileAny(nodeObject, function (err, results) {
+      if (err) {
+        return callback(err, self.result);
       }
+      self.result.setSuccess(true);
+      return callback(null, self.result);
     });
 
+    // var template_app = '';
+    // self.core.loadChildren(nodeObject, function (err, children) {
+    //   for (var i = children.length - 1; i >= 0; i--) {
+    //     if (self.core.isTypeOf(children[i], self.META.template_app)) {
+    //       var p_node = self.core.getBase(children[i]);
+    //       template_app = self.core.getAttribute(p_node, 'name');
+    //       break;
+    //     }
+    //   }
+    //   if (self.template_apps_data[template_app]) {
+
+    //     switch(template_app) {
+    //       case 'DrugDeliveryBase':
+    //         self.core.loadChildren(nodeObject, function (err, children) {
+    //           for (var i = children.length - 1; i >= 0; i--) {
+    //             if (self.core.isTypeOf(children[i], self.META.uses)) {
+    //               self.compileApp(children[i], function (err) {
+    //                 if (err) {
+    //                   return callback(err, self.result);
+    //                 }
+    //                 self.result.setSuccess(true);
+    //                 callback(null, self.result);
+    //               });
+    //             }
+    //           }
+    //         });
+    //         break;
+    //       case 'DrugDeliveryMCR':
+    //         self.compileMCR(nodeObject, callback);
+    //         break;
+    //       default:
+    //         return callback('unknown issue: ' + template_app, self.result);
+    //     }
+
+    //   } else {
+    //     return callback('There\'s no template_app object in the sheet', self.result);
+    //   }
+
+
+    // });
+
+  };
+
+  DrugDelivery.prototype.compileAny = function(nodeObject, callback) {
+    var self = this;
+    var async = require('async');
+    var path = require('path');
+    var fs = require('fs');
+    var dirname = module.uri;
+    var template_app_name, path_to_template;
+    async.waterfall([
+      function (callback) {
+        self.getChildrenObj(nodeObject, callback);
+      },
+      function (children_obj, callback) {
+        if (children_obj.template_app.length != 1) {
+          return callback('There should be only 1 template_app in the sheet');
+        }
+        var p_node = self.core.getBase(children_obj.template_app[0]);
+        template_app_name = self.core.getAttribute(p_node, 'name');
+        path_to_template = path.join(path.resolve(dirname), '../../../templates', template_app_name);
+        if (!fs.existsSync(path_to_template)) {
+          return callback('no template for ' + parent_name);
+        }
+        self.getInputValues(children_obj, callback);
+      },
+      function (input_obj, callback) {
+        // save header
+        // compile and add artifacts
+        callback();
+      }
+    ],
+    function (err, results) {
+      if (err) {
+        return callback(err);
+      }
+      callback();
+    });
   };
 
   DrugDelivery.prototype.getChildrenObj = function(nodeObject, callback) {
@@ -124,14 +184,44 @@ define([
       }
       for (var i = children.length - 1; i >= 0; i--) {
         if (self.core.isTypeOf(children[i], self.META.template_app)) {
-          result['template_app'].push(children[i]);
+          result.template_app.push(children[i]);
         } else if (self.core.isTypeOf(children[i], self.META.uses)) {
-          result['uses'].push(children[i]);
+          result.uses.push(children[i]);
         }
       }
       return callback(null, result);
     });
   };
+
+  DrugDelivery.prototype.getInputValues = function (children_obj, callback) {
+    var self = this;
+    var async = require('async');
+    var macro_obj = {};
+    async.each(children_obj.uses, function (uses, callback) {
+      async.parallel([
+        function (callback) {
+          self.core.loadPointer(uses, 'src', callback);
+        },
+        function (callback) {
+          self.core.loadPointer(uses, 'dst', callback);
+        }
+      ], function (err, results) {
+        var src_obj = results[0];
+        var dst_obj = results[1];
+        var dst_name = self.core.getAttribute(dst_obj, 'name');
+        // TODO
+        var src_value = self.core.getAttribute(src_obj, 'value');
+        macro_obj[dst_name] = src_value;
+        callback();
+      });
+    }, function (err) {
+      if (err) {
+        return callback(err);
+      }
+      callback(null, macro_obj);
+    });
+  };
+
 
   DrugDelivery.prototype.compileMCR = function (nodeObject, callback) {
     var self = this;
@@ -150,12 +240,12 @@ define([
         self.getChildrenObj(nodeObject, callback);
       },
       function (app_children, callback) {
-        if (app_children['template_app'].length != 1) {
+        if (app_children.template_app.length != 1) {
           callback('There should be only 1 template_app in the sheet');
         }
 
         var macro_obj = {};
-        async.each(app_children['uses'], function (uses, callback) {
+        async.each(app_children.uses, function (uses, callback) {
           async.parallel([
             function (callback) {
               self.core.loadPointer(uses, 'src', callback);
@@ -297,18 +387,18 @@ define([
     var cache = {};
     var order = {};
     var schedule = [];
-    var initial;
+    var initial, duration, amount;
     self.core.loadChildren(schedule_obj, function (err, children) {
       for (var i = children.length - 1; i >= 0; i--) {
         var path = self.core.getPath(children[i]);
         cache[path] = children[i];
       }
-      for (var i = children.length - 1; i >= 0; i--) {
+      for (i = children.length - 1; i >= 0; i--) {
         if (self.core.isTypeOf(children[i], self.META.time)) {
           var src = self.core.getPointerPath(children[i], 'src');
           var dst = self.core.getPointerPath(children[i], 'dst');
-          var duration = self.core.getAttribute(children[i], 'duration');
-          var amount = self.core.getAttribute(cache[dst], 'amount');
+          duration = self.core.getAttribute(children[i], 'duration');
+          amount = self.core.getAttribute(cache[dst], 'amount');
           order[src] = [dst, duration, amount];
         } else if (self.core.isTypeOf(children[i], self.META.start)) {
           initial = self.core.getPath(children[i]);
