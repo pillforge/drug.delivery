@@ -17,6 +17,7 @@ config.seedProjects.basePaths.push('src/seeds/DrugDelivery');
 // Add requirejs paths
 
 
-config.mongo.uri = 'mongodb://127.0.0.1:27017/drug_delivery'
+
+config.mongo.uri = 'mongodb://127.0.0.1:27017/drug_delivery';
 validateConfig(config);
 module.exports = config;
