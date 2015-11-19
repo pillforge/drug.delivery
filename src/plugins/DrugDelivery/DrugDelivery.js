@@ -84,6 +84,14 @@ define([
         viscosity: {
           type: 'number',
           name: 'viscosity'
+        },
+        viscosity_a: {
+          type: 'number',
+          name: 'viscosity_a'
+        },
+        viscosity_b: {
+          type: 'number',
+          name: 'viscosity_b'
         }
       },
       'DrugDeliveryMCR': {
@@ -187,6 +195,17 @@ define([
             macro_obj[dst_name] = self.scheduleToString(schedule);
             callback();
           });
+        } else if (dst_name == 'viscosity') {
+          var src_val = self.core.getAttribute(src_obj, 'value');
+          if (src_val.indexOf('.') > -1) {
+            var visc_val_arr = src_val.split('.');
+            macro_obj.viscosity_a = visc_val_arr[0];
+            macro_obj.viscosity_b = visc_val_arr[1];
+          } else {
+            macro_obj.viscosity_a = src_val;
+            macro_obj.viscosity_b = 0;
+          }
+          callback();
         } else {
           var src_value = self.core.getAttribute(src_obj, 'value');
           macro_obj[dst_name] = src_value;

@@ -1,1 +1,1 @@
-#define heartbeat 7654
+#define heartbeat 3200

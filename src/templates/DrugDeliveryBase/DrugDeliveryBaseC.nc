@@ -77,6 +77,8 @@ implementation {
           status = 121;
           size_schedule_data = sizeof(schedule_data)/sizeof(schedule_data[0]);
           data1 = size_schedule_data;
+          data2 = viscosity_a;
+          data3 = viscosity_b;
           post sendStatus();
         }
         break;

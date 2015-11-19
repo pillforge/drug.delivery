@@ -39,6 +39,9 @@ implementation {
   uint16_t time_data[101] = {0, 600, 800, 1087, 1167, 1330, 1569, 1880, 2256, 2693, 3185, 3729, 4319, 4951, 5621, 6324, 7058, 7818, 8600, 9403, 10222, 11055, 11898, 12750, 13607, 14468, 15330, 16191, 17050, 17904, 18751, 19592, 20423, 21244, 22054, 22851, 23635, 24405, 25160, 25900, 26623, 27330, 28021, 28695, 29351, 29990, 30612, 31217, 31805, 32375, 32929, 33467, 33989, 34495, 34986, 35462, 35923, 36372, 36806, 37229, 37639, 38038, 38427, 38806, 39175, 39535, 39888, 40233, 40572, 40904, 41231, 41554, 41872, 42187, 42498, 42807, 43114, 43419, 43723, 44025, 44328, 44629, 44930, 45231, 45532, 45833, 46133, 46433, 46732, 47029, 47326, 47620, 47911, 48199, 48482, 48761, 49033, 49297, 49553, 49799, 50033};
   uint8_t release_step = 0;
   uint32_t motor_run_time = 1;
+  uint32_t viscosity_a = 1;
+  uint32_t viscosity_b = 0;
+  double viscosity;
 
   task void sendStatus();
   task void handleStatus();
@@ -87,11 +90,27 @@ implementation {
     return bufPtr;
   }
 
+  int lenHelper(int x) {
+      if(x>=1000000000) return 10;
+      if(x>=100000000) return 9;
+      if(x>=10000000) return 8;
+      if(x>=1000000) return 7;
+      if(x>=100000) return 6;
+      if(x>=10000) return 5;
+      if(x>=1000) return 4;
+      if(x>=100) return 3;
+      if(x>=10) return 2;
+      return 1;
+  }
+
   task void handleStatus() {
     int i;
     switch (status) {
       case 121:
         printf("Schedule receive start\n");
+        viscosity_a = data2;
+        viscosity_b = data3;
+        viscosity = (double)viscosity_a + (double)viscosity_b / (double) lenHelper(viscosity_b);
         status = 122;
         post sendStatus();
         break;
@@ -126,7 +145,7 @@ implementation {
       printf("Waiting for %u minutes before release\n", schedule_data[release_step][0]);
       total_released = 100 - status;
       to_be_released = schedule_data[release_step][1];
-      motor_run_time = time_data[total_released + to_be_released] - time_data[total_released];
+      motor_run_time = viscosity * 10 * time_data[total_released + to_be_released] - viscosity * 10 * time_data[total_released];
       call ScheduleTimer.startOneShot(schedule_data[release_step][0] * 60 * 1000);
     } else {
       printf("Drug release completed\n");
