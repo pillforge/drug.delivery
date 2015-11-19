@@ -119,7 +119,7 @@ define([
     var path = require('path');
     var fs = require('fs');
     var dirname = module.uri;
-    var template_app_name, path_to_template;
+    var template_app_name, path_to_template, radio_address;
     async.waterfall([
       function (callback) {
         self.getChildrenObj(nodeObject, callback);
@@ -129,6 +129,7 @@ define([
           return callback('There should be only 1 template_app in the sheet');
         }
         var p_node = self.core.getBase(children_obj.template_app[0]);
+        radio_address = self.core.getAttribute(children_obj.template_app[0], 'radio_address');
         template_app_name = self.core.getAttribute(p_node, 'name');
         path_to_template = path.join(path.resolve(dirname), '../../../templates', template_app_name);
         if (!fs.existsSync(path_to_template)) {
@@ -138,7 +139,7 @@ define([
       },
       function (input_obj, callback) {
         self.saveHeader(input_obj, path_to_template, template_app_name);
-        self.compileAddArtifacts(path_to_template, callback);
+        self.compileAddArtifacts(path_to_template, radio_address, callback);
       }
     ],
     function (err, results) {
@@ -227,12 +228,12 @@ define([
     }).join(', ') + '}';
   };
 
-  DrugDelivery.prototype.compileAddArtifacts = function(path_to_template, callback) {
+  DrugDelivery.prototype.compileAddArtifacts = function(path_to_template, radio_address, callback) {
     var self = this;
     var path = require('path');
     var fs = require('fs');
     var execSync = require('child_process').execSync;
-    var cmd = 'make exp430';
+    var cmd = 'make exp430 install.' + radio_address;
     try {
       execSync(cmd, {
         cwd: path_to_template,
