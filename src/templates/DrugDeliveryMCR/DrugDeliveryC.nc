@@ -52,6 +52,7 @@ implementation {
 
   event void Boot.booted() {
     printf("MCR booted: DrugDeliveryC\n");
+    call M0.write(0);
     call RadioControl.start();
   }
 
