@@ -14,11 +14,13 @@ implementation {
   components DrugDeliveryBaseC as App, MainC;
   components SerialPrintfC;
   App.Boot -> MainC.Boot;
+  components PlatformSerialC as UartC;
 
   components new TimerMilliC() as Timer0;
   App.BeatTimer -> Timer0;
   components LedsC;
   App.Leds -> LedsC;
+  App.UartStream -> UartC;
 
   components ActiveMessageC;
   App.RadioControl -> ActiveMessageC;

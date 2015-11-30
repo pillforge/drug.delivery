@@ -14,6 +14,7 @@ module DrugDeliveryBaseC {
     interface Packet;
     interface AMSend;
     interface Receive;
+    interface UartStream;
 
   }
 }
@@ -36,8 +37,11 @@ implementation {
   uint8_t size_schedule_data = 0;
   uint32_t schedule_data[][2] = schedule_data_macro;
 
+  char serial_trig_letter = 'r';
+
   task void handleStatus();
   task void sendStatus();
+  task void resetScheduler();
 
   event void Boot.booted() {
     printf("Base booted: DrugDeliveryBaseC\n");
@@ -48,6 +52,7 @@ implementation {
     if (err == SUCCESS) {
       printf("Base radio started.\n");
       call BeatTimer.startPeriodic(1000);
+      call UartStream.enableReceiveInterrupt();
     } else {
       call RadioControl.start();
     }
@@ -64,7 +69,7 @@ implementation {
     data1 = rsm->data1;
     data2 = rsm->data2;
     data3 = rsm->data3;
-    printf("Status: %d, data1: %d\n", status, data1);
+    printf("Status: %d, data1: %d data2: %lu data3: %lu\n", status, data1, data2, data3);
     post handleStatus();
     return bufPtr;
   }
@@ -105,6 +110,7 @@ implementation {
         break;
       default:
         printf("Undefined status code: %d\n", status);
+        call UartStream.enableReceiveInterrupt();
         break;
     }
   }
@@ -118,8 +124,27 @@ implementation {
     call AMSend.send(to_send_addr, &packet, sizeof(RadioStatusMsg));
   }
 
+  task void resetScheduler() {
+    status = 120;
+    post handleStatus();
+  }
+
   event void AMSend.sendDone(message_t* bufPtr, error_t error) {}
 
   event void RadioControl.stopDone(error_t err) {}
 
+  async event void UartStream.receivedByte(uint8_t byte) {
+    if (byte == serial_trig_letter) {
+      printf("Resetting scheduler n");
+      call UartStream.disableReceiveInterrupt();
+      post resetScheduler();
+    } else 
+      printf("Send %c to reset scheduler\n", serial_trig_letter);
+  }
+
+  async event void UartStream.sendDone(uint8_t*, uint16_t, error_t) {
+  }
+
+  async event void UartStream.receiveDone(uint8_t* buf, uint16_t len, error_t error) {
+  }
 }

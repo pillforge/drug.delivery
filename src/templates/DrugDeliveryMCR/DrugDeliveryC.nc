@@ -40,6 +40,7 @@ implementation {
   uint16_t time_data[101] = {0U, 600U, 800U, 1087U, 1167U, 1330U, 1569U, 1880U, 2256U, 2693U, 3185U, 3729U, 4319U, 4951U, 5621U, 6324U, 7058U, 7818U, 8600U, 9403U, 10222U, 11055U, 11898U, 12750U, 13607U, 14468U, 15330U, 16191U, 17050U, 17904U, 18751U, 19592U, 20423U, 21244U, 22054U, 22851U, 23635U, 24405U, 25160U, 25900U, 26623U, 27330U, 28021U, 28695U, 29351U, 29990U, 30612U, 31217U, 31805U, 32375U, 32929U, 33467U, 33989U, 34495U, 34986U, 35462U, 35923U, 36372U, 36806U, 37229U, 37639U, 38038U, 38427U, 38806U, 39175U, 39535U, 39888U, 40233U, 40572U, 40904U, 41231U, 41554U, 41872U, 42187U, 42498U, 42807U, 43114U, 43419U, 43723U, 44025U, 44328U, 44629U, 44930U, 45231U, 45532U, 45833U, 46133U, 46433U, 46732U, 47029U, 47326U, 47620U, 47911U, 48199U, 48482U, 48761U, 49033U, 49297U, 49553U, 49799U, 50033U};
   uint8_t release_step = 0;
   uint32_t motor_run_time = 1;
+  uint32_t schedule_wait_time = 1;
   uint32_t viscosity_a = 1;
   uint32_t viscosity_b = 0;
   float viscosity;
@@ -47,6 +48,8 @@ implementation {
   task void sendStatus();
   task void handleStatus();
   task void startRelease();
+  void resetScheduler();
+
   float time_point(int);
   int int_power(int, int);
 
@@ -78,6 +81,8 @@ implementation {
     RadioStatusMsg *rsm = (RadioStatusMsg *) call Packet.getPayload(&packet, sizeof(RadioStatusMsg));
     rsm->status = status;
     rsm->data1 = data1;
+    rsm->data2 = motor_run_time;
+    rsm->data3 = schedule_wait_time;
     call AMSend.send(to_send_addr, &packet, sizeof(RadioStatusMsg));
   }
 
@@ -132,6 +137,7 @@ implementation {
         status = 100;
         call BeatTimer.stop();
         call BeatTimer.startPeriodic(heartbeat);
+        resetScheduler();
         post sendStatus();
         post startRelease();
         break;
@@ -141,15 +147,23 @@ implementation {
     }
   }
 
+  void resetScheduler(){
+    call M0.write(0);
+    call MotorTimer.stop();
+    call ScheduleTimer.stop();
+    release_step = 0;
+  }
+
   task void startRelease() {
     uint8_t total_released;
     uint8_t to_be_released;
     if (release_step <= data1) {
-      printf("Waiting for %u minutes before release\n", (unsigned int)schedule_data[release_step][0]);
+      printf("Waiting for %u seconds before release\n", (unsigned int)schedule_data[release_step][0]);
       total_released = 100 - status;
       to_be_released = schedule_data[release_step][1];
       motor_run_time = viscosity * 10 * (time_data[total_released + to_be_released] - time_data[total_released]);
-      call ScheduleTimer.startOneShot(schedule_data[release_step][0] * 60 * 1000);
+      schedule_wait_time = schedule_data[release_step][0] * 1000;
+      call ScheduleTimer.startOneShot(schedule_wait_time);
     } else {
       printf("Drug release completed\n");
     }
