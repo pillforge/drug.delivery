@@ -1,5 +1,6 @@
 #define NEW_PRINTF_SEMANTICS
 #include "printf.h"
+#include "math.h"
 #include "DrugDelivery.h"
 #include "drug_delivery_mcr.h"
 
@@ -36,21 +37,22 @@ implementation {
   uint32_t data3 = 99999;
 
   uint32_t schedule_data[20][2];
-  uint16_t time_data[101] = {0, 600, 800, 1087, 1167, 1330, 1569, 1880, 2256, 2693, 3185, 3729, 4319, 4951, 5621, 6324, 7058, 7818, 8600, 9403, 10222, 11055, 11898, 12750, 13607, 14468, 15330, 16191, 17050, 17904, 18751, 19592, 20423, 21244, 22054, 22851, 23635, 24405, 25160, 25900, 26623, 27330, 28021, 28695, 29351, 29990, 30612, 31217, 31805, 32375, 32929, 33467, 33989, 34495, 34986, 35462, 35923, 36372, 36806, 37229, 37639, 38038, 38427, 38806, 39175, 39535, 39888, 40233, 40572, 40904, 41231, 41554, 41872, 42187, 42498, 42807, 43114, 43419, 43723, 44025, 44328, 44629, 44930, 45231, 45532, 45833, 46133, 46433, 46732, 47029, 47326, 47620, 47911, 48199, 48482, 48761, 49033, 49297, 49553, 49799, 50033};
+  uint16_t time_data[101] = {0U, 600U, 800U, 1087U, 1167U, 1330U, 1569U, 1880U, 2256U, 2693U, 3185U, 3729U, 4319U, 4951U, 5621U, 6324U, 7058U, 7818U, 8600U, 9403U, 10222U, 11055U, 11898U, 12750U, 13607U, 14468U, 15330U, 16191U, 17050U, 17904U, 18751U, 19592U, 20423U, 21244U, 22054U, 22851U, 23635U, 24405U, 25160U, 25900U, 26623U, 27330U, 28021U, 28695U, 29351U, 29990U, 30612U, 31217U, 31805U, 32375U, 32929U, 33467U, 33989U, 34495U, 34986U, 35462U, 35923U, 36372U, 36806U, 37229U, 37639U, 38038U, 38427U, 38806U, 39175U, 39535U, 39888U, 40233U, 40572U, 40904U, 41231U, 41554U, 41872U, 42187U, 42498U, 42807U, 43114U, 43419U, 43723U, 44025U, 44328U, 44629U, 44930U, 45231U, 45532U, 45833U, 46133U, 46433U, 46732U, 47029U, 47326U, 47620U, 47911U, 48199U, 48482U, 48761U, 49033U, 49297U, 49553U, 49799U, 50033U};
   uint8_t release_step = 0;
   uint32_t motor_run_time = 1;
   uint32_t viscosity_a = 1;
   uint32_t viscosity_b = 0;
-  double viscosity;
+  float viscosity;
 
   task void sendStatus();
   task void handleStatus();
   task void startRelease();
-  double time_point(int);
+  float time_point(int);
   int int_power(int, int);
 
   event void Boot.booted() {
     printf("MCR booted: DrugDeliveryC\n");
+    call M0.write(0);
     call RadioControl.start();
   }
 
@@ -68,6 +70,7 @@ implementation {
     call Leds.led0Toggle();
     if (status == 120 || status <= 100) {
       post sendStatus();
+      printf("Alive\n");
     }
   }
 
@@ -90,7 +93,7 @@ implementation {
     return bufPtr;
   }
 
-  int lenHelper(int x) {
+  int32_t lenHelper(int32_t x) {
       if(x>=1000000000) return 10;
       if(x>=100000000) return 9;
       if(x>=10000000) return 8;
@@ -110,12 +113,12 @@ implementation {
         printf("Schedule receive start\n");
         viscosity_a = data2;
         viscosity_b = data3;
-        viscosity = (double)viscosity_a + (double)viscosity_b / (double) lenHelper(viscosity_b);
+        viscosity = (float)viscosity_a + (float)viscosity_b / (float) powf(10, lenHelper(viscosity_b));
         status = 122;
         post sendStatus();
         break;
       case 123:
-        printf("Received a schedule: #%u %u mins %u %d%\n", data1, data2, data3);
+        printf("Received a schedule: %d %lu  mins %lu\n", data1, data2, data3);
         schedule_data[data1][0] = data2;
         schedule_data[data1][1] = data3;
         post sendStatus();
@@ -124,7 +127,7 @@ implementation {
         printf("Schedule wholly received\n");
         printf("%d\nFull schedule:\n", data1);
         for (i = 0; i <= data1; i++) {
-          printf("%u -%u- %u\n", schedule_data[i][0], schedule_data[i][1]);
+          printf("%lu -%lu\n", schedule_data[i][0], schedule_data[i][1]);
         }
         status = 100;
         call BeatTimer.stop();
@@ -142,7 +145,7 @@ implementation {
     uint8_t total_released;
     uint8_t to_be_released;
     if (release_step <= data1) {
-      printf("Waiting for %u minutes before release\n", schedule_data[release_step][0]);
+      printf("Waiting for %u minutes before release\n", (unsigned int)schedule_data[release_step][0]);
       total_released = 100 - status;
       to_be_released = schedule_data[release_step][1];
       motor_run_time = viscosity * 10 * time_data[total_released + to_be_released] - viscosity * 10 * time_data[total_released];
@@ -153,13 +156,13 @@ implementation {
   }
 
   event void ScheduleTimer.fired() {
-    printf("Running motor for %u miliseconds\n", motor_run_time);
+    printf("Running motor for %lu miliseconds\n", motor_run_time);
     call M0.write(255);
     call MotorTimer.startOneShot(motor_run_time);
   }
 
   event void MotorTimer.fired() {
-    printf("%u/%u of schedule completed\n", release_step, data1);
+    printf("%d/%d of schedule completed\n", release_step, data1);
     status -= schedule_data[release_step][1];
     call M0.write(0);
     release_step++;

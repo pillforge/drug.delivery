@@ -1313,13 +1313,13 @@
     "6f3575db-a4b2-90e8-e0ff-8f6f399876c6": {
       "attributes": {
         "name": "template_app",
-        "radio_address": 1
+        "target": "exp430"
       },
       "base": "cd891e7b-e2ea-e929-f6cd-9faf4f1fc045",
       "meta": {
         "attributes": {
-          "radio_address": {
-            "type": "integer"
+          "target": {
+            "type": "string"
           }
         },
         "children": {
@@ -3998,7 +3998,7 @@
     "d5248e62-34bf-0b3e-d727-1fd9406f1275": {
       "attributes": {
         "name": "DrugDeliveryMCR",
-        "radio_address": "2"
+        "target": "vumcr"
       },
       "base": "6f3575db-a4b2-90e8-e0ff-8f6f399876c6",
       "meta": {},
@@ -4008,8 +4008,8 @@
       },
       "registry": {
         "position": {
-          "x": 616,
-          "y": 259
+          "x": 619,
+          "y": 260
         }
       },
       "sets": {},

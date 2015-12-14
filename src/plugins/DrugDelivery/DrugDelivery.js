@@ -119,7 +119,7 @@ define([
     var path = require('path');
     var fs = require('fs');
     var dirname = module.uri;
-    var template_app_name, path_to_template, radio_address;
+    var template_app_name, path_to_template, target, radio_address;
     async.waterfall([
       function (callback) {
         self.getChildrenObj(nodeObject, callback);
@@ -129,6 +129,7 @@ define([
           return callback('There should be only 1 template_app in the sheet');
         }
         var p_node = self.core.getBase(children_obj.template_app[0]);
+        target = self.core.getAttribute(children_obj.template_app[0], 'target');
         radio_address = self.core.getAttribute(children_obj.template_app[0], 'radio_address');
         template_app_name = self.core.getAttribute(p_node, 'name');
         path_to_template = path.join(path.resolve(dirname), '../../../templates', template_app_name);
@@ -139,7 +140,7 @@ define([
       },
       function (input_obj, callback) {
         self.saveHeader(input_obj, path_to_template, template_app_name);
-        self.compileAddArtifacts(path_to_template, radio_address, callback);
+        self.compileAddArtifacts(path_to_template, target, radio_address, callback);
       }
     ],
     function (err, results) {
@@ -228,12 +229,12 @@ define([
     }).join(', ') + '}';
   };
 
-  DrugDelivery.prototype.compileAddArtifacts = function(path_to_template, radio_address, callback) {
+  DrugDelivery.prototype.compileAddArtifacts = function(path_to_template, target, radio_address, callback) {
     var self = this;
     var path = require('path');
     var fs = require('fs');
     var execSync = require('child_process').execSync;
-    var cmd = 'make exp430 install.' + radio_address;
+    var cmd = 'make ' + target;
     try {
       execSync(cmd, {
         cwd: path_to_template,
@@ -242,8 +243,18 @@ define([
     } catch (err) {
       return callback(err);
     }
+
+    var cmd2 = 'make ' + target + ' reinstall,' + radio_address;
+    try {
+      execSync(cmd2, {
+        cwd: path_to_template,
+        stdio: 'inherit'
+      });
+    } catch (err) {
+	// Ignore error because we are just using this to set the radio address
+    }
     var artifact = self.blobClient.createArtifact(path.basename(path_to_template));
-    var path_to_build = path.join(path_to_template, 'build', 'exp430');
+    var path_to_build = path.join(path_to_template, 'build', target);
     var files = fs.readdirSync(path_to_build);
     var filesToAdd = {};
     files.forEach(function(file) {
