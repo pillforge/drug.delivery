@@ -146,7 +146,7 @@ implementation {
       total_released = 100 - status;
       to_be_released = schedule_data[release_step][1];
       motor_run_time = viscosity * 10 * time_data[total_released + to_be_released] - viscosity * 10 * time_data[total_released];
-      call ScheduleTimer.startOneShot(schedule_data[release_step][0] * 60 * 1000);
+      call ScheduleTimer.startOneShot(schedule_data[release_step][0] * 1000);
     } else {
       printf("Drug release completed\n");
     }

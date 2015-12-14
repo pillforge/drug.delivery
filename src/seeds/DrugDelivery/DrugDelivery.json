@@ -438,7 +438,7 @@
         "src": null
       },
       "registry": {
-        "DisplayFormat": "$duration mins",
+        "DisplayFormat": "$duration seconds",
         "lineEndArrow": "classic-xwide-xlong",
         "position": {
           "x": 202,
