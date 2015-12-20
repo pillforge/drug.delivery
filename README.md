@@ -11,7 +11,7 @@
   * A menu pops up, click on **Run DrugDelivery** option
   * Click **Save & Run** button
   * A while later a value will appear on the play button on top left, click on it
-  * Click **Show results...*
+  * Click **Show results...**
   * Click on **Details** in the list object
   * If the compilation is successful, you can download the files under the **Generated Artifacts** title
 
