@@ -60,6 +60,7 @@ define([
    */
   DrugDelivery.prototype.main = function (callback) {
     var self = this;
+    var path = require('path');
     var nodeObject = self.activeNode;
 
     var meta_types = ['app', 'uses', 'schedule', 'input', 'time', 'start', 'template_app'];
@@ -73,6 +74,9 @@ define([
     if (!self.core.isTypeOf(nodeObject, self.META.app) ) {
       return callback('Object is not an *app*', self.result);
     }
+
+    var random_folder_name = 'build_' + Math.random().toString(36).substring(7);
+    self._tmp_folder = path.join('/tmp', random_folder_name);
 
     self.template_apps_data = {
       'DrugDeliveryBase': {
@@ -131,7 +135,7 @@ define([
         self.getInputValues(children_obj, template_app_name, callback);
       },
       function (input_obj, callback) {
-        self.saveHeader(input_obj, path_to_template, template_app_name);
+        self.saveHeader(input_obj, template_app_name);
         self.compileAddArtifacts(path_to_template, target, radio_address, callback);
       }
     ],
@@ -219,7 +223,9 @@ define([
     var path = require('path');
     var fs = require('fs');
     var execSync = require('child_process').execSync;
-    var cmd = 'make ' + target;
+    var build_location = self._tmp_folder + '/build';
+    var options = 'CFLAGS=-I' + self._tmp_folder + ' BUILDDIR=' + build_location;
+    var cmd = options + ' make ' + target;
     try {
       execSync(cmd, {
         cwd: path_to_template,
@@ -229,7 +235,7 @@ define([
       return callback(err);
     }
 
-    var cmd2 = 'make ' + target + ' reinstall,' + radio_address;
+    var cmd2 = options + ' make ' + target + ' reinstall,' + radio_address;
     try {
       execSync(cmd2, {
         cwd: path_to_template,
@@ -239,11 +245,10 @@ define([
 	// Ignore error because we are just using this to set the radio address
     }
     var artifact = self.blobClient.createArtifact(path.basename(path_to_template));
-    var path_to_build = path.join(path_to_template, 'build', target);
-    var files = fs.readdirSync(path_to_build);
+    var files = fs.readdirSync(build_location);
     var filesToAdd = {};
     files.forEach(function(file) {
-      filesToAdd[file] = fs.readFileSync(path.join(path_to_build, file));
+      filesToAdd[file] = fs.readFileSync(path.join(build_location, file));
     });
     artifact.addFiles(filesToAdd, function (err, hashes) {
       artifact.save(function (err, hash) {
@@ -253,11 +258,13 @@ define([
     });
   };
 
-  DrugDelivery.prototype.saveHeader = function(macro_obj, file_path, appname) {
+  DrugDelivery.prototype.saveHeader = function(macro_obj, appname) {
+    var self = this;
     var path = require('path');
-    var fs = require('fs');
+    var fs = require('fs-extra');
+    fs.mkdirsSync(self._tmp_folder);
     var d = this.template_apps_data[appname];
-    file_path = path.join(file_path, d.filename);
+    var file_path = path.join(self._tmp_folder, d.filename);
     var s = '';
     for (var mac in macro_obj) {
       s += '#define ' + d[mac].name + ' ' + macro_obj[mac] + '\n';
