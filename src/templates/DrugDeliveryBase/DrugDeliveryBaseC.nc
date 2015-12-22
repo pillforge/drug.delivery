@@ -32,6 +32,7 @@ implementation {
   uint8_t data1 = 99;
   uint32_t data2 = 99999;
   uint32_t data3 = 99999;
+  float data4 = 0.1;
   uint8_t sending_schedule = 0;
 
   uint8_t size_schedule_data = 0;
@@ -82,8 +83,7 @@ implementation {
           status = 121;
           size_schedule_data = sizeof(schedule_data)/sizeof(schedule_data[0]);
           data1 = size_schedule_data;
-          data2 = viscosity_a;
-          data3 = viscosity_b;
+          data4 = viscosity;
           post sendStatus();
         }
         break;
@@ -121,6 +121,7 @@ implementation {
     rsm->data1 = data1;
     rsm->data2 = data2;
     rsm->data3 = data3;
+    rsm->data4 = data4;
     call AMSend.send(to_send_addr, &packet, sizeof(RadioStatusMsg));
   }
 

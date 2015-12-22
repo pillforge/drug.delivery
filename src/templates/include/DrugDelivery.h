@@ -6,6 +6,7 @@ typedef nx_struct RadioStatusMsg {
   nx_uint8_t data1;
   nx_uint32_t data2;
   nx_uint32_t data3;
+  nx_float data4;
 } RadioStatusMsg;
 
 enum {

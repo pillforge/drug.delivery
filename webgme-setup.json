@@ -1,8 +1,8 @@
 {
   "components": {
     "seeds": {
-      "DrugDelivery": {
-        "src": "src/seeds/DrugDelivery"
+      "DrugDeliverySeed": {
+        "src": "src/seeds/DrugDeliverySeed"
       }
     },
     "plugins": {
