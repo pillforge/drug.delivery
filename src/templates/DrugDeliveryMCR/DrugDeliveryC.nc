@@ -92,23 +92,12 @@ implementation {
     data1 = rsm->data1;
     data2 = rsm->data2;
     data3 = rsm->data3;
+    data4 = rsm->data4;
     printf("Status: %d\n", status);
     post handleStatus();
     return bufPtr;
   }
 
-  int32_t lenHelper(int32_t x) {
-      if(x>=1000000000) return 10;
-      if(x>=100000000) return 9;
-      if(x>=10000000) return 8;
-      if(x>=1000000) return 7;
-      if(x>=100000) return 6;
-      if(x>=10000) return 5;
-      if(x>=1000) return 4;
-      if(x>=100) return 3;
-      if(x>=10) return 2;
-      return 1;
-  }
 
   task void handleStatus() {
     int i;
@@ -120,7 +109,7 @@ implementation {
         post sendStatus();
         break;
       case 123:
-        printf("Received a schedule: %d %lu  mins %lu\n", data1, data2, data3);
+        printf("Received a schedule: %d %lu sec %lu\n", data1, data2, data3);
         schedule_data[data1][0] = data2;
         schedule_data[data1][1] = data3;
         post sendStatus();
