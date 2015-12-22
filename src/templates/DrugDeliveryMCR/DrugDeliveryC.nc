@@ -80,8 +80,14 @@ implementation {
     RadioStatusMsg *rsm = (RadioStatusMsg *) call Packet.getPayload(&packet, sizeof(RadioStatusMsg));
     rsm->status = status;
     rsm->data1 = data1;
-    rsm->data2 = motor_run_time;
-    rsm->data3 = schedule_wait_time;
+    if (call MotorTimer.isRunning())
+      rsm->data2 = call MotorTimer.getdt() - (call MotorTimer.getNow() - call MotorTimer.gett0());
+    else
+      rsm->data2 = 0;
+    if (call ScheduleTimer.isRunning())
+      rsm->data3 = call ScheduleTimer.getdt() - (call ScheduleTimer.getNow() - call ScheduleTimer.gett0());
+    else
+      rsm->data3 = 0;
     call AMSend.send(to_send_addr, &packet, sizeof(RadioStatusMsg));
   }
 
@@ -118,7 +124,7 @@ implementation {
         printf("Schedule wholly received\n");
         printf("%d\nFull schedule:\n", data1);
         for (i = 0; i <= data1; i++) {
-          printf("%lu -%lu\n", schedule_data[i][0], schedule_data[i][1]);
+          printf("%lu - %lu\n", schedule_data[i][0], schedule_data[i][1]);
         }
         status = 100;
         call BeatTimer.stop();
@@ -156,7 +162,7 @@ implementation {
   }
 
   event void ScheduleTimer.fired() {
-    printf("Running motor for %lu miliseconds\n", motor_run_time);
+    printf("Running motor for %lu milliseconds\n", motor_run_time);
     call M0.write(255);
     call MotorTimer.startOneShot(motor_run_time);
   }
